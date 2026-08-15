@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>2048 - Number Puzzle</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+  :root{
+    --bg: #16181d;
+    --panel: #1f232b;
+    --grid-bg: #2a2f38;
+    --cell-empty: #333a46;
+    --accent: #f0c14b;
+    --accent2: #f27649;
+    --text: #eef1f5;
+    --text-dim: #8b92a1;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html, body{
+    margin:0; padding:0; min-height:100vh;
+    background: var(--bg);
+    font-family:'Space Mono', monospace;
+    color: var(--text);
+    display:flex; align-items:center; justify-content:center;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .wrap{
+    width:100%; max-width: 420px;
+    padding: 24px 16px 40px;
+  }
+
+  .topbar{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    margin-bottom: 16px;
+  }
+
+  h1{
+    font-size: 1.7rem;
+    margin: 0;
+    letter-spacing: 1px;
+  }
+
+  h1 span{ color: var(--accent); }
+
+  .scores{ display:flex; gap: 8px; }
+
+  .score-box{
+    background: var(--panel);
+    border-radius: 6px;
+    padding: 6px 12px;
+    text-align:center;
+    min-width: 64px;
+  }
+
+  .score-box .label{
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .score-box .value{
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  .combo-badge{
+    position: fixed;
+    top: 18px; left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    background: var(--accent2);
+    color: #1a1a1a;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 6px 14px;
+    border-radius: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 20;
+  }
+
+  .combo-badge.show{
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  @keyframes shake{
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+
+  .board.shake{
+    animation: shake 0.25s ease;
+  }
+
+  .no-space-toast{
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background: rgba(22,24,29,0.92);
+    color: var(--accent2);
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--accent2);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 15;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .no-space-toast.show{
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .subrow{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom: 14px;
+  }
+
+  .hint{
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+
+  .new-game-btn{
+    background: var(--accent);
+    color: #1a1a1a;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+
+  .new-game-btn:active{ transform: scale(0.97); }
+
+  .board{
+    position: relative;
+    background: var(--grid-bg);
+    border-radius: 8px;
+    padding: 8px;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .cell-bg{
+    aspect-ratio: 1;
+    background: var(--cell-empty);
+    border-radius: 5px;
+  }
+
+  .tiles-layer{
+    position:absolute;
+    top: 8px; left: 8px; right: 8px; bottom: 8px;
+  }
+
+  .tile{
+    position:absolute;
+    display:flex; align-items:center; justify-content:center;
+    border-radius: 5px;
+    font-weight: 700;
+    transition: top 0.1s ease, left 0.1s ease;
+  }
+
+  .tile-inner{
+    animation: pop 0.12s ease;
+  }
+
+  .tile.merged .tile-inner{
+    animation: mergepop 0.18s ease;
+  }
+
+  @keyframes mergepop{
+    0%{ transform: scale(1); }
+    50%{ transform: scale(1.18); }
+    100%{ transform: scale(1); }
+  }
+
+  .tile.glow{
+    box-shadow: 0 0 14px 2px var(--accent);
+  }
+
+  @keyframes pop{
+    from{ transform: scale(0.6); opacity: 0.4; }
+    to{ transform: scale(1); opacity: 1; }
+  }
+
+  .msg-overlay{
+    position:absolute; inset: 8px;
+    background: rgba(22,24,29,0.88);
+    border-radius: 8px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap: 12px;
+    text-align:center;
+    padding: 20px;
+  }
+
+  .msg-overlay.hidden{ display:none; }
+
+  .msg-overlay .big{
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  .footer-note{
+    text-align:center;
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-top: 18px;
+    opacity: 0.7;
+  }
+
+  .dpad{
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    margin-top: 18px;
+  }
+
+  .dpad-mid{ display:flex; gap:6px; }
+
+  .dpad-btn{
+    width: 52px; height: 52px;
+    background: var(--panel);
+    color: var(--text);
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+
+  .dpad-btn:active{ background: var(--accent); color:#1a1a1a; }
+
+  @media (prefers-reduced-motion: reduce){
+    .tile{ transition:none; }
+    .tile-inner{ animation:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="topbar">
+    <h1>20<span>48</span></h1>
+    <div class="scores">
+      <div class="score-box">
+        <div class="label">score</div>
+        <div class="value" id="scoreVal">0</div>
+      </div>
+      <div class="score-box">
+        <div class="label">best</div>
+        <div class="value" id="bestVal">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="subrow">
+    <div class="hint">swipe or use arrow keys - merge tiles to reach 2048</div>
+    <button class="new-game-btn" id="newGameBtn">New</button>
+  </div>
+
+  <div class="board" id="board">
+    <div class="grid" id="gridBg"></div>
+    <div class="tiles-layer" id="tilesLayer"></div>
+    <div class="no-space-toast" id="noSpaceToast">No space that way</div>
+    <div class="msg-overlay hidden" id="msgOverlay">
+      <div class="big" id="msgText">You win!</div>
+      <button class="new-game-btn" id="msgRestartBtn">Play again</button>
+    </div>
+  </div>
+
+  <div class="dpad">
+    <button class="dpad-btn dpad-up" data-dir="up">&#9650;</button>
+    <div class="dpad-mid">
+      <button class="dpad-btn dpad-left" data-dir="left">&#9664;</button>
+      <button class="dpad-btn dpad-down" data-dir="down">&#9660;</button>
+      <button class="dpad-btn dpad-right" data-dir="right">&#9654;</button>
+    </div>
+  </div>
+
+  <div class="footer-note">tip: keep your biggest tile in a corner</div>
+</div>
+
+<div class="combo-badge" id="comboBadge"></div>
+
+<script>
+(function(){
+  const SIZE = 4;
+  const STORAGE_KEY_BEST = 'num2048_best';
+
+  let grid, score, best, gameOver, won, keepPlaying, lastMergedMask;
+
+  const gridBgEl = document.getElementById('gridBg');
+  const tilesLayerEl = document.getElementById('tilesLayer');
+  const scoreEl = document.getElementById('scoreVal');
+  const bestEl = document.getElementById('bestVal');
+  const boardEl = document.getElementById('board');
+  const msgOverlay = document.getElementById('msgOverlay');
+  const msgText = document.getElementById('msgText');
+  const noSpaceToast = document.getElementById('noSpaceToast');
+  const comboBadge = document.getElementById('comboBadge');
+
+  // just draw the 16 empty background squares once, they never move
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    const c = document.createElement('div');
+    c.className = 'cell-bg';
+    gridBgEl.appendChild(c);
+  }
+
+  function loadBest(){
+    try {
+      return parseInt(localStorage.getItem(STORAGE_KEY_BEST), 10) || 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function saveBest(val){
+    try { localStorage.setItem(STORAGE_KEY_BEST, val); } catch (e) { /* ignore, no biggie */ }
+  }
+
+  function newGame(){
+    grid = Array.from({length: SIZE}, () => Array(SIZE).fill(0));
+    lastMergedMask = Array.from({length: SIZE}, () => Array(SIZE).fill(false));
+    score = 0;
+    gameOver = false;
+    won = false;
+    keepPlaying = false;
+    msgOverlay.classList.add('hidden');
+    addRandomTile();
+    addRandomTile();
+    render();
+  }
+
+  function addRandomTile(){
+    const empty = [];
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (grid[r][c] === 0) empty.push([r, c]);
+      }
+    }
+    if (empty.length === 0) return;
+    const [r, c] = empty[Math.floor(Math.random() * empty.length)];
+    // bumped up the odds of a 4 a bit (was 10%) - keeps the board
+    // filling up faster so you can't just coast on easy merges
+    grid[r][c] = Math.random() < 0.8 ? 2 : 4;
+  }
+
+  function tileColor(val){
+    const colors = {
+      2: '#3a4150', 4: '#454e60', 8: '#c99a3a', 16: '#d68a3a',
+      32: '#dd7a3a', 64: '#e46a3a', 128: '#e8b93a', 256: '#e8ab3a',
+      512: '#e89e3a', 1024: '#e8913a', 2048: '#f0c14b'
+    };
+    return colors[val] || '#f27649';
+  }
+
+  function render(){
+    tilesLayerEl.innerHTML = '';
+    const boardWidth = boardEl.clientWidth - 16; // minus padding
+    const gap = 8;
+    const cellSize = (boardWidth - gap * (SIZE - 1)) / SIZE;
+
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        const val = grid[r][c];
+        if (val === 0) continue;
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        if (lastMergedMask[r][c]) tile.classList.add('merged');
+        if (val >= 128) tile.classList.add('glow');
+        tile.style.width = cellSize + 'px';
+        tile.style.height = cellSize + 'px';
+        tile.style.top = r * (cellSize + gap) + 'px';
+        tile.style.left = c * (cellSize + gap) + 'px';
+        tile.style.background = tileColor(val);
+        tile.style.color = val <= 4 ? 'var(--text)' : '#1a1a1a';
+        tile.style.fontSize = (val < 100 ? cellSize * 0.4 : val < 1000 ? cellSize * 0.32 : cellSize * 0.26) + 'px';
+
+        const inner = document.createElement('div');
+        inner.className = 'tile-inner';
+        inner.textContent = val;
+        tile.appendChild(inner);
+        tilesLayerEl.appendChild(tile);
+      }
+    }
+
+    scoreEl.textContent = score;
+    best = Math.max(best, score);
+    bestEl.textContent = best;
+    saveBest(best);
+  }
+
+  // slides + merges one row toward index 0 (left). other directions
+  // just rotate the grid, run this, then rotate back - saves writing
+  // four almost-identical functions
+  function slideRowLeft(row){
+    const nonZero = row.filter(v => v !== 0);
+    const merged = [];
+    const mergeFlags = [];
+    let gained = 0;
+    let i = 0;
+    while (i < nonZero.length) {
+      if (i + 1 < nonZero.length && nonZero[i] === nonZero[i + 1]) {
+        const mergedVal = nonZero[i] * 2;
+        merged.push(mergedVal);
+        mergeFlags.push(true);
+        gained += mergedVal;
+        if (mergedVal === 2048) won = true;
+        i += 2;
+      } else {
+        merged.push(nonZero[i]);
+        mergeFlags.push(false);
+        i += 1;
+      }
+    }
+    while (merged.length < SIZE) { merged.push(0); mergeFlags.push(false); }
+    const moved = merged.some((v, idx) => v !== row[idx]);
+    return { row: merged, mergeFlags, gained, moved };
+  }
+
+  function rotateGridCW(g){
+    const n = g.length;
+    const res = Array.from({length: n}, () => Array(n).fill(0));
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        res[c][n - 1 - r] = g[r][c];
+      }
+    }
+    return res;
+  }
+
+  function move(direction){
+    if (gameOver) return;
+
+    // rotate so "move left" logic works for every direction, then
+    // rotate back afterwards
+    let rotations;
+    if (direction === 'left') rotations = 0;
+    else if (direction === 'up') rotations = 3;
+    else if (direction === 'right') rotations = 2;
+    else rotations = 1; // down
+
+    let working = grid;
+    for (let i = 0; i < rotations; i++) working = rotateGridCW(working);
+
+    let moved = false;
+    let gainedTotal = 0;
+    let mergeCount = 0;
+    const newRows = [];
+    const maskRows = [];
+    working.forEach(row => {
+      const result = slideRowLeft(row);
+      if (result.moved) moved = true;
+      gainedTotal += result.gained;
+      mergeCount += result.mergeFlags.filter(Boolean).length;
+      newRows.push(result.row);
+      maskRows.push(result.mergeFlags);
+    });
+
+    if (!moved) {
+      // nothing to slide that direction - let the player know instead
+      // of just doing nothing, since that's confusing on a full board
+      showNoSpace();
+      return;
+    }
+
+    let finalGrid = newRows;
+    let finalMask = maskRows;
+    // rotate back the other way
+    const backRotations = (4 - rotations) % 4;
+    for (let i = 0; i < backRotations; i++) {
+      finalGrid = rotateGridCW(finalGrid);
+      finalMask = rotateGridCW(finalMask);
+    }
+
+    grid = finalGrid;
+    lastMergedMask = finalMask;
+    score += gainedTotal;
+    addRandomTile();
+    render();
+
+    if (mergeCount >= 2) showCombo(mergeCount);
+
+    if (won && !keepPlaying) {
+      showMessage("You hit 2048!");
+    } else if (!hasMovesLeft()) {
+      gameOver = true;
+      showMessage("Game over");
+    }
+  }
+
+  function showNoSpace(){
+    boardEl.classList.remove('shake');
+    // force reflow so the shake animation can replay if triggered again quickly
+    void boardEl.offsetWidth;
+    boardEl.classList.add('shake');
+    noSpaceToast.classList.add('show');
+    window.setTimeout(() => noSpaceToast.classList.remove('show'), 500);
+  }
+
+  let comboTimer = null;
+  function showCombo(count){
+    comboBadge.textContent = count + 'x combo!';
+    comboBadge.classList.add('show');
+    if (comboTimer) window.clearTimeout(comboTimer);
+    comboTimer = window.setTimeout(() => comboBadge.classList.remove('show'), 700);
+  }
+
+  function hasMovesLeft(){
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (grid[r][c] === 0) return true;
+        if (c < SIZE - 1 && grid[r][c] === grid[r][c + 1]) return true;
+        if (r < SIZE - 1 && grid[r][c] === grid[r + 1][c]) return true;
+      }
+    }
+    return false;
+  }
+
+  function showMessage(text){
+    msgText.textContent = text;
+    msgOverlay.classList.remove('hidden');
+    if (text === "You hit 2048!") {
+      keepPlaying = true; // let them close it and keep going if they want
+    }
+  }
+
+  // keyboard controls
+  document.addEventListener('keydown', (e) => {
+    const map = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+    if (map[e.key]) {
+      e.preventDefault();
+      move(map[e.key]);
+    }
+  });
+
+  // swipe / drag controls - pointer events cover touch AND mouse,
+  // so this also works when testing on desktop with a mouse
+  let dragStartX = 0, dragStartY = 0, dragging = false;
+
+  boardEl.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+  });
+
+  boardEl.addEventListener('pointerup', (e) => {
+    if (!dragging) return;
+    dragging = false;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const absX = Math.abs(dx), absY = Math.abs(dy);
+    if (Math.max(absX, absY) < 24) return; // too small to count as a swipe
+
+    if (absX > absY) {
+      move(dx > 0 ? 'right' : 'left');
+    } else {
+      move(dy > 0 ? 'down' : 'up');
+    }
+  });
+
+  boardEl.addEventListener('pointercancel', () => { dragging = false; });
+
+  boardEl.addEventListener('animationend', (e) => {
+    if (e.animationName === 'shake') boardEl.classList.remove('shake');
+  });
+
+  document.getElementById('newGameBtn').addEventListener('click', newGame);
+  document.getElementById('msgRestartBtn').addEventListener('click', newGame);
+
+  document.querySelectorAll('.dpad-btn').forEach(btn => {
+    btn.addEventListener('click', () => move(btn.dataset.dir));
+  });
+
+  window.addEventListener('resize', render);
+
+  best = loadBest();
+  newGame();
+})();
+</script>
+
+</body>
+</html>
