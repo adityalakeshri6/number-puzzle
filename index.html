@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Number Puzzle X</title>
+<meta name="description" content="Merge numbers, chase combos, beat your best score. Play free in your browser - no download needed.">
+<meta property="og:title" content="Number Puzzle X - The Colorful Number Challenge">
+<meta property="og:description" content="Merge numbers, chase combos, beat your best score. Play free in your browser - no download needed.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://adityalakeshri6.github.io/number-puzzle/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Number Puzzle X - The Colorful Number Challenge">
+<meta name="twitter:description" content="Merge numbers, chase combos, beat your best score. Play free in your browser.">
+<meta name="theme-color" content="#8b5cf6">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 :root{--bg:#08051a;--bg2:#12082e;--bg3:#001b35;--white:#fff;--muted:#aaa7c7;--purple:#8b5cf6;--pink:#ec4899;--blue:#06b6d4;--cyan:#22d3ee;--orange:#fb7185;--yellow:#facc15;--green:#22c55e;--red:#ef4444;--glass:rgba(255,255,255,.1);--border:rgba(255,255,255,.16)}
@@ -89,6 +98,8 @@ button{font-family:inherit}
 .msg-overlay .big{font-size:25px;font-weight:900;background:linear-gradient(90deg,#facc15,#fb7185,#c084fc,#67e8f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .msg-overlay p{margin:7px 0 15px;color:var(--muted);font-size:10px}
 .play-again{padding:11px 20px;border:0;border-radius:11px;color:#fff;font-size:10px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#8b5cf6,#ec4899)}
+.share-btn{margin-top:9px;padding:11px 20px;border:1px solid var(--border);border-radius:11px;color:#fff;font-size:10px;font-weight:800;cursor:pointer;background:rgba(255,255,255,.08);display:flex;align-items:center;gap:7px;justify-content:center}
+.share-btn:hover{background:rgba(255,255,255,.14)}
 .dpad{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:13px}
 .dpad-mid{display:flex;gap:6px}
 .dpad-btn{width:50px;height:43px;border:1px solid var(--border);border-radius:12px;background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.05));color:#fff;font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 7px 17px rgba(0,0,0,.2);transition:.15s}
@@ -152,6 +163,7 @@ button{font-family:inherit}
 <div class="big" id="msgText">You Win!</div>
 <p id="msgDescription">Amazing performance.</p>
 <button class="play-again" id="msgRestartBtn">PLAY AGAIN</button>
+<button class="share-btn" id="shareBtn">📤 SHARE MY SCORE</button>
 </div>
 </div>
 <div class="dpad">
@@ -437,6 +449,23 @@ document.querySelectorAll('.dpad-btn').forEach(btn=>{
 
 newGameBtn.addEventListener('click',()=>newGame(false));
 document.getElementById('msgRestartBtn').addEventListener('click',()=>newGame(false));
+
+document.getElementById('shareBtn').addEventListener('click',shareScore);
+
+function shareScore(){
+  const text = won
+    ? `I just hit ${target} in Number Puzzle X! Score: ${score.toLocaleString()} in ${moves} moves. Think you can beat it?`
+    : `I scored ${score.toLocaleString()} in Number Puzzle X (highest tile: ${highest}). Think you can beat it?`;
+  const url = 'https://adityalakeshri6.github.io/number-puzzle/';
+
+  if(navigator.share){
+    navigator.share({ title:'Number Puzzle X', text, url }).catch(()=>{ /* user cancelled, ignore */ });
+  } else {
+    // desktop fallback - open a pre-filled WhatsApp share link
+    const waUrl = 'https://wa.me/?text=' + encodeURIComponent(text + ' ' + url);
+    window.open(waUrl, '_blank');
+  }
+}
 
 undoBtn.addEventListener('click',()=>{
   if(history.length===0){ showToast('NOTHING TO UNDO'); return; }
